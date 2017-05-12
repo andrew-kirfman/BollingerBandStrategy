@@ -1,0 +1,6 @@
+[submodule "RobinhoodPython"]
+	path = RobinhoodPython
+	url = git@github.com:andrew-kirfman/RobinhoodPython.git
+[submodule "yahoo_finance_data_extract"]
+	path = yahoo_finance_data_extract
+	url = git@github.com:spidezad/yahoo_finance_data_extract.git
