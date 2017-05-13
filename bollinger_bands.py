@@ -17,11 +17,14 @@ from yahoo_finance_historical_data_extract import YFHistDataExtr
 import matplotlib.pyplot as plt
 import time
 
+from multiprocessing.dummy import Pool as ThreadPool
+
 from robinhood import RobinhoodInstance
 
 STOCK_FILE = "./stock_list.txt"
 FILTERED_STOCK_FILE = "./filtered_stock_list.txt"
 SPECIAL_CHAR_LIST = ['+', '*', '-', '^', '_']
+NUM_THREADS = 1
 
 # The yahoo finance library uses some files to save temp data.  Construct
 # them here if they do not already exist.
@@ -46,9 +49,6 @@ except OSError:
     pass
 
 def calculate_bands(ticker_symbol):
-    # Delete the old bands image for this picture
-    os.system("rm ./static/pictures/%s.png" % ticker_symbol)
-
     data_ext = YFHistDataExtr()
     data_ext.set_interval_to_retrieve(400)#in days
     data_ext.set_multiple_stock_list([str(ticker_symbol)])
@@ -68,9 +68,6 @@ def calculate_bands(ticker_symbol):
     temp_data_set['50d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=50)
     data_ext.all_stock_df = temp_data_set.sort('Date',ascending = False ) #revese back to original
 
-    data_ext.all_stock_df.plot(x='Date', y=['Adj Close','20d_ma','50d_ma','Bol_upper','Bol_lower' ])
-
-    plt.savefig('./static/pictures/%s.png' % ticker_symbol)
     return temp_data_set['Adj Close'], temp_data_set['Bol_lower'], temp_data_set['20d_ma']
 
 
@@ -129,68 +126,70 @@ def find_all_good_candidates():
         print "Something bad happened!"
         sys.exit(1)
 
-    stock_file = open(STOCK_FILE, "r")
+    stock_file = open(FILTERED_STOCK_FILE, "r")
 
-    #for stock_ticker in stock_file.readlines():
-    for stock_ticker in ["SLV", "NOV", "TRGP", "JJC", "XOM", "AAPL", "TSLA", "KMI"]:
-        print "Testing: %s" % stock_ticker
-        stock_ticker = stock_ticker.strip()
-        for special_char in SPECIAL_CHAR_LIST:
-            stock_ticker = stock_ticker.replace(special_char, "")
+    good_candidates = []
 
-        # Get the bollinger band history along with the 5 day moving average
-        try:
-            close, lower_band, five_day_ma = calculate_bands(stock_ticker)
-        except Exception:
-            print "Could not test ticker: %s" % stock_ticker
-            continue
+    candidate_test = []
 
-        # If I get bad data, just continue to the next stock
-        if len(close) < 5 or len(lower_band) < 5 or len(five_day_ma) < 5:
-            print "Could not test ticker: %s" % stock_ticker
-            continue
+    pool = ThreadPool(NUM_THREADS)
 
-        last_5_days_5_day_ma = []
-        last_5_days_bb = []
-        last_5_days_close = []
-
-        for i in range(0, 5):
-            last_5_days_5_day_ma.append(five_day_ma[i])
-            last_5_days_bb.append(lower_band[i])
-            last_5_days_close.append(close[i])
-
-        condition_1 = False
-        condition_2 = False
-
-        # Condition 1: Has the stock price at close been below the lower bollinger band
-        # at market close within the last 5 days
-        for i in range(0, 5):
-            if last_5_days_close[i] < last_5_days_bb[i]:
-                condition_1 = True
-
-        # Condition 2: Has the current stock price been above the 5 day moving average sometime in the last 3 days
-        for i in range(0, 3):
-            if last_5_days_close[i] > last_5_days_5_day_ma[i]:
-                condition_2 = True
-
-        if condition_1 is True and condition_2 is True:
-            print "BB:GoodCandidate"
-        else:
-            print "BB:BadCandidate"
-
-        time.sleep(5)
-
-        pass
-
+    results = pool.map(test_ticker, stock_file.readlines())
 
     import code; code.interact(local=locals())
 
 
 
+def test_ticker(stock_ticker):
+    print "Testing: %s" % stock_ticker
+    stock_ticker = stock_ticker.strip()
+    for special_char in SPECIAL_CHAR_LIST:
+        stock_ticker = stock_ticker.replace(special_char, "")
+
+    # Get the bollinger band history along with the 5 day moving average
+    try:
+        close, lower_band, five_day_ma = calculate_bands(stock_ticker)
+    except Exception:
+        print "Could not test ticker: %s" % stock_ticker
+        return None
+
+    # If I get bad data, just continue to the next stock
+    if len(close) < 5 or len(lower_band) < 5 or len(five_day_ma) < 5:
+        print "Could not test ticker: %s" % stock_ticker
+        return None
+
+    last_5_days_5_day_ma = []
+    last_5_days_bb = []
+    last_5_days_close = []
+
+    for i in range(0, 5):
+        last_5_days_5_day_ma.append(five_day_ma[i])
+        last_5_days_bb.append(lower_band[i])
+        last_5_days_close.append(close[i])
+
+    # Condition 1: Has the stock price at close been below the lower bollinger band
+    # at market close within the last 5 days
+    for i in range(0, 5):
+        if last_5_days_close[i] < last_5_days_bb[i]:
+
+            # Condition 2: Has the current stock price been above the 5 day moving average sometime in the last 3 days
+            for i in range(0, 3):
+                if last_5_days_close[i] > last_5_days_5_day_ma[i]:
+                    print "BB:GoodCandidate"
+                    return stock_ticker
+
+            # If we get here, then the stock is not a candidate
+            print "BB:BadCandidate"
+            return None
+
+    # Getting here also means that this was a bad candidate
+    print "BB:BadCandidate"
+    return None
+
+
+
 
 if __name__ == "__main__":
-    filter_candidates()
-    sys.exit(1)
     find_all_good_candidates()
 
 
