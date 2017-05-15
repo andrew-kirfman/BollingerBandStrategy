@@ -136,8 +136,7 @@ def find_all_good_candidates():
 
     results = pool.map(test_ticker, stock_file.readlines())
 
-    import code; code.interact(local=locals())
-
+    return results
 
 
 def test_ticker(stock_ticker):
@@ -190,7 +189,9 @@ def test_ticker(stock_ticker):
 
 
 if __name__ == "__main__":
-    find_all_good_candidates()
+    good_candidiates = find_all_good_candidates()
+
+
 
 
 
