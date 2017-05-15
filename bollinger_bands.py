@@ -9,7 +9,7 @@
 
 import os, re, sys, time, datetime, copy, shutil
 
-sys.path.append("./yahoo_finance_data_extract")
+sys.path.append("./yahoo_finance")
 sys.path.append("./RobinhoodPython")
 sys.path.append(".")
 
