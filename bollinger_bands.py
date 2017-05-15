@@ -11,12 +11,15 @@ import os, re, sys, time, datetime, copy, shutil
 
 sys.path.append("./yahoo_finance_data_extract")
 sys.path.append("./RobinhoodPython")
+sys.path.append(".")
 
 import pandas
 from yahoo_finance_historical_data_extract import YFHistDataExtr
 import matplotlib.pyplot as plt
 import time
 
+from send_email import send_email
+from email.mime.text import MIMEText
 from multiprocessing.dummy import Pool as ThreadPool
 
 from robinhood import RobinhoodInstance
@@ -58,14 +61,14 @@ def calculate_bands(ticker_symbol):
     temp_data_set = data_ext.all_stock_df.sort('Date',ascending = True ) #sort to calculate the rolling mean
 
     temp_data_set['20d_ma'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=5)
-    temp_data_set['50d_ma'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=50)
-    temp_data_set['Bol_upper'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=80) + 2* pandas.rolling_std(temp_data_set['Adj Close'], 80, min_periods=80)
+    #temp_data_set['50d_ma'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=50)
+    #temp_data_set['Bol_upper'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=80) + 2* pandas.rolling_std(temp_data_set['Adj Close'], 80, min_periods=80)
     temp_data_set['Bol_lower'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=80) - 2* pandas.rolling_std(temp_data_set['Adj Close'], 80, min_periods=80)
-    temp_data_set['Bol_BW'] = ((temp_data_set['Bol_upper'] - temp_data_set['Bol_lower'])/temp_data_set['20d_ma'])*100
-    temp_data_set['Bol_BW_200MA'] = pandas.rolling_mean(temp_data_set['Bol_BW'], window=50)#cant get the 200 daa
-    temp_data_set['Bol_BW_200MA'] = temp_data_set['Bol_BW_200MA'].fillna(method='backfill')##?? ,may not be good
-    temp_data_set['20d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=20)
-    temp_data_set['50d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=50)
+    #temp_data_set['Bol_BW'] = ((temp_data_set['Bol_upper'] - temp_data_set['Bol_lower'])/temp_data_set['20d_ma'])*100
+    #temp_data_set['Bol_BW_200MA'] = pandas.rolling_mean(temp_data_set['Bol_BW'], window=50)#cant get the 200 daa
+    #temp_data_set['Bol_BW_200MA'] = temp_data_set['Bol_BW_200MA'].fillna(method='backfill')##?? ,may not be good
+    #temp_data_set['20d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=20)
+    #temp_data_set['50d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=50)
     data_ext.all_stock_df = temp_data_set.sort('Date',ascending = False ) #revese back to original
 
     return temp_data_set['Adj Close'], temp_data_set['Bol_lower'], temp_data_set['20d_ma']
@@ -190,6 +193,8 @@ def test_ticker(stock_ticker):
 
 if __name__ == "__main__":
     good_candidiates = find_all_good_candidates()
+
+    import code; code.interact(local=locals())
 
 
 
