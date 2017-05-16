@@ -15,18 +15,22 @@ sys.path.append(".")
 
 import pandas
 from yahoo_finance_historical_data_extract import YFHistDataExtr
+from yahoo_finance import Share
+import yahoo_finance
 import matplotlib.pyplot as plt
 import time
+import copy
 
 from send_email import send_email
 from email.mime.text import MIMEText
 from multiprocessing.dummy import Pool as ThreadPool
+from urllib2 import HTTPError
 
 from robinhood import RobinhoodInstance
 
 STOCK_FILE = "./stock_list.txt"
 FILTERED_STOCK_FILE = "./filtered_stock_list.txt"
-SPECIAL_CHAR_LIST = ['+', '*', '-', '^', '_']
+SPECIAL_CHAR_LIST = ['+', '*', '-', '^', '_', '#']
 NUM_THREADS = 1
 
 # The yahoo finance library uses some files to save temp data.  Construct
@@ -188,11 +192,92 @@ def test_ticker(stock_ticker):
     print "BB:BadCandidate"
     return None
 
+def filter_good_candidates(good_candidates):
+    """
+    Filter all of the matching candidates by certain parameters.  Right now, specifically 
+    filter out all low volume stocks.  Low volume limit is 500,000/day.  Could be adjusted
+    """
+    
+    LOW_VOLUME_LIMIT = 500,000
 
+    filtered_tickers = []
+
+    for ticker in good_candidates:
+        # Filter duplicates.  This happens from time to time
+        if ticker in filtered_tickers:
+            continue
+        
+        print "ticker: %s" % ticker
+        
+        # Try to load the share object.  If you can't after a certain
+        # number of retries, just continue and skip the ticker
+        retries = 0
+        failure = False
+        while True:
+            
+            try:
+                time.sleep(1)
+                share_object = Share(ticker)
+            except Exception:
+                if retries > 5:
+                    failure = True
+                    break
+                
+                retries = retries + 1
+                continue
+
+            break
+        
+        if failure is True:
+            continue
+        
+        # Filter by volume
+        average_volume = share_object.get_avg_daily_volume()
+        
+        # If the average volume can't be found, just continue
+        try:
+            int(average_volume)
+        except TypeError:
+            continue
+
+        if int(average_volume) >= LOW_VOLUME_LIMIT:
+            filtered_tickers.append(ticker)
+
+        
+        # Add any other filtering conditions here!!!
+        
+    
+    return filtered_tickers
+    
 
 
 if __name__ == "__main__":
-    good_candidiates = find_all_good_candidates()
+    #good_candidates = find_all_good_candidates()
+
+    good_candidates = ['DGLT', 'USAS', 'UUUU', 'VVPR', 'AHPA', 'LVHE', 'OILB',
+        'SNES', 'TPIV', 'INSG', 'CDEV', 'OILK', 'CSTR', 'RCOM', 'LSI', 'EUFS',
+        'BSWN', 'DMPI', 'HRI', 'TWLO', 'HRI', 'STIE', 'TANNI', 'AAB', 'SRTS',
+        'OIIL', 'MLPZ', 'GSM', 'VYGR', 'ASHX', 'PMTS', 'AGI', 'ARWA', 'COLL', 
+        'OPGN', 'CHAU', 'CHEK', 'AFTY', 'CAPR', 'CTRV', 'LBIO', 'VNRX', 'SBEU',
+        'CPSH', 'PSLV', 'NVX', 'NHF', 'SGYPW', 'WHLRW', 'CAPNW', 'KMI', 'CRMD',
+        'CBON', 'PDBC', 'ADMA', 'PRTO', 'SRSC', 'HDLV', 'KRG', 'BRX', 'WPG', 'FRT',
+        'LSI', 'BFS', 'UBA', 'REG', 'AKR', 'ACC', 'RPAI', 'SRC', 'CHMI', 'WSR',
+        'EDR', 'SPG', 'CYBR', 'TKAI', 'CFRX', 'WHLM', 'CNXT', 'JMEI', 'CCLP',
+        'ELP', 'AMAP', 'WES', 'MBT', 'BHP', 'AMID', 'SIM', 'PTR', 'SSN', 'GSH',
+        'AB', 'ERJ', 'FANH', 'WBAI', 'PVD', 'JRJC', 'NGL', 'NS', 'ACH', 'CEQP',
+        'BBDO', 'VCO', 'VRTV', 'ABY', 'TSE', 'LALT', 'QAT', 'T', 'ARX', 'SIVR',
+        'ASNA', 'CDI', 'EFU', 'EFZ', 'FDP', 'TECK', 'BGI', 'BSFT', 'SAND', 'KS',
+        'LUNA', 'ALN', 'OESX', 'MAG', 'OTIV', 'MANH', 'HEES', 'EBSB', 'CUPM', 'NDAQ',
+        'UHN', 'YPRO', 'UUUU', 'ARRY', 'UCO', 'TXMD', 'BABY', 'HUBB', 'GSC', 'AHC',
+        'ASHR', 'RDN', 'HRI', 'EGHT', 'NRG', 'COBO', 'SEA', 'DGII', 'PODD', 'CLDX',
+        'SMRT', 'SNSS', 'UGA', 'EMX', 'JAKK', 'CPER', 'DJCI', 'PBH', 'HPHW', 'HP',
+        'SGOC', 'QTWWQ', 'VRD', 'AMAG', 'TVIA']
+
+    filtered_good_candidates = filter_good_candidates(good_candidates)
+
+    # Now, we build the email message to send
+    send_email("Investment Aggregator Stock Update", filtered_good_candidates)
+
 
     import code; code.interact(local=locals())
 
