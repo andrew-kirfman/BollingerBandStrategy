@@ -4,18 +4,40 @@
 # Developer: Andrew Kirfman                                                  #
 # Project: Financial Application                                             #
 #                                                                            #
-# File: ./bollinger_bands.py                                                 #
+# File: ./investment_aggregator_emailer.py                                   #
 # -------------------------------------------------------------------------- #
 
-import os, re, sys, time, datetime, copy, shutil
+# -------------------------------------------------------------------------- #
+# System Includes                                                            #
+# -------------------------------------------------------------------------- #
+
+import os
+import re
+import sys
+import time
+import datetime
+import copy
+import shutil
+import json
+
+# -------------------------------------------------------------------------- #
+# Custom Includes                                                            #
+# -------------------------------------------------------------------------- #
+
 
 sys.path.append("./yahoo_finance")
 sys.path.append("./RobinhoodPython")
+sys.path.append("./HTTP_Request_Randomizer")
 sys.path.append(".")
+
+
 
 import pandas
 from yahoo_finance_historical_data_extract import YFHistDataExtr
 from yahoo_finance import Share
+from http.requests.proxy.requestProxy import RequestProxy
+from bs4 import BeautifulSoup
+
 import yahoo_finance
 import matplotlib.pyplot as plt
 import time
@@ -32,6 +54,14 @@ STOCK_FILE = "./stock_list.txt"
 FILTERED_STOCK_FILE = "./filtered_stock_list.txt"
 SPECIAL_CHAR_LIST = ['+', '*', '-', '^', '_', '#']
 NUM_THREADS = 1
+LOW_VOLUME_LIMIT = 1000000
+
+# PROXY SERVER GLOBAL VARIABLE --> Move this when you move the historical data to another module
+PROXY_SERVER = None
+
+HISTORICAL_DIRECTORY = "./historical_data"
+DIVIDEND_DIRECTORY = "./dividend_data"
+
 
 # The yahoo finance library uses some files to save temp data.  Construct
 # them here if they do not already exist.
@@ -55,27 +85,158 @@ try:
 except OSError:
     pass
 
+try:
+    #os.system("rm -rf %s" % HISTORICAL_DIRECTORY)
+    os.makedirs(HISTORICAL_DIRECTORY)
+except OSError:
+    pass
+
+try:
+    #os.system("rm -rf %s" % DIVIDEND_DIRECTORY)
+    os.makedirs(DIVIDEND_DIRECTORY)
+except OSError:
+    pass
+
+def read_ticker_historical(ticker_symbol):
+    URL = "https://finance.yahoo.com/quote/%s/history/" % ticker_symbol
+    response = None
+
+    # Loop until you get a valid response
+    while True:
+        try:
+            response = PROXY_SERVER.generate_proxied_request(URL, req_timeout=5)
+        except Exception as e:
+            print "Exception: %s %s" % (ticker_symbol, str(e))
+            return
+
+        if response is None:
+            continue
+
+        if response.__dict__['status_code'] == 200:
+            break
+
+    response_soup = BeautifulSoup(response.text, 'html5lib')
+
+    # Find all rows in the historical data.
+    response_soup = response_soup.find_all("tr")
+    response_soup = response_soup[2:]
+
+    json_history_file = open("%s/%s.json" % (HISTORICAL_DIRECTORY, ticker_symbol), "w")
+    json_dividend_file = open("%s/%s_dividend.json" % (DIVIDEND_DIRECTORY, ticker_symbol), "w")
+
+    historical_data = {
+            'Date'      : [],
+            'Open'      : [],
+            'High'      : [],
+            'Low'       : [],
+            'Close'     : [],
+            'Adj Close' : [],
+            'Volume'    : []
+            }
+
+    dividend_data = {
+            'Date'      : [],
+            'Amount'    : []
+            }
+
+
+    for response in response_soup:
+        filtered_response = response.find_all("td")
+
+        if len(filtered_response) == 7:
+
+            # Date
+            historical_data["Date"].append(filtered_response[0].text)
+
+            # Open
+            historical_data["Open"].append(filtered_response[1].text)
+
+            # High
+            historical_data["High"].append(filtered_response[2].text)
+
+            # Low
+            historical_data["Low"].append(filtered_response[3].text)
+
+            # Close
+            historical_data["Close"].append(filtered_response[4].text)
+
+            # Adj Close
+            historical_data["Adj Close"].append(filtered_response[5].text)
+        elif len(filtered_response) == 2:
+
+            # Date
+            dividend_data["Date"].append(filtered_response[0].text)
+
+            # Dividend Amount
+            amount = filtered_response[1].text.replace(" Dividend", "")
+            dividend_data["Amount"].append(amount)
+        else:
+            continue
+
+    json_history_file.write(json.dumps(historical_data))
+    json_dividend_file.write(json.dumps(dividend_data))
+
+    json_history_file.close()
+    json_dividend_file.close()
+
+
+def get_historical_data(threads = 200):
+    global PROXY_SERVER
+
+    PROXY_SERVER = RequestProxy()
+
+    stock_file = open(FILTERED_STOCK_FILE, "r")
+
+    candidates_to_test = []
+
+    pool = ThreadPool(threads)
+
+    for ticker in stock_file.readlines():
+        candidates_to_test.append(ticker.strip())
+
+    #for ticker in candidates_to_test:
+    #    read_ticker_historical(ticker)
+
+    pool.map(read_ticker_historical, candidates_to_test)
+
+
+
+
+
+
+
+
+
+
+    pass
+
 def calculate_bands(ticker_symbol):
-    data_ext = YFHistDataExtr()
-    data_ext.set_interval_to_retrieve(400)#in days
-    data_ext.set_multiple_stock_list([str(ticker_symbol)])
-    data_ext.get_hist_data_of_all_target_stocks()
-    # convert the date column to date object
-    data_ext.all_stock_df['Date'] =  pandas.to_datetime( data_ext.all_stock_df['Date'])
-    temp_data_set = data_ext.all_stock_df.sort('Date',ascending = True ) #sort to calculate the rolling mean
+    # Read in the ticker data from the json history file.
+    json_file = open("%s/%s.json" % (HISTORICAL_DIRECTORY, ticker_symbol))
 
-    temp_data_set['20d_ma'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=5)
-    #temp_data_set['50d_ma'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=50)
-    #temp_data_set['Bol_upper'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=80) + 2* pandas.rolling_std(temp_data_set['Adj Close'], 80, min_periods=80)
-    temp_data_set['Bol_lower'] = pandas.rolling_mean(temp_data_set['Adj Close'], window=80) - 2* pandas.rolling_std(temp_data_set['Adj Close'], 80, min_periods=80)
-    #temp_data_set['Bol_BW'] = ((temp_data_set['Bol_upper'] - temp_data_set['Bol_lower'])/temp_data_set['20d_ma'])*100
-    #temp_data_set['Bol_BW_200MA'] = pandas.rolling_mean(temp_data_set['Bol_BW'], window=50)#cant get the 200 daa
-    #temp_data_set['Bol_BW_200MA'] = temp_data_set['Bol_BW_200MA'].fillna(method='backfill')##?? ,may not be good
-    #temp_data_set['20d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=20)
-    #temp_data_set['50d_exma'] = pandas.ewma(temp_data_set['Adj Close'], span=50)
-    data_ext.all_stock_df = temp_data_set.sort('Date',ascending = False ) #revese back to original
+    # Convert the read in data into a dictionary
+    stock_json = json_file.read()
+    stock_json = json.loads(stock_json)
 
-    return temp_data_set['Adj Close'], temp_data_set['Bol_lower'], temp_data_set['20d_ma']
+    stock_json["Date"] = pandas.to_datetime(stock_json["Date"])
+
+    # Data has to be a pandas dataframe in order to be operated on
+    stock_json["Adj Close"] = pandas.DataFrame(data=stock_json["Adj Close"])
+
+
+    # Calculate 5 day moving average
+    stock_json['5d_ma'] = pandas.rolling_mean(stock_json['Adj Close'][::-1], window=5)
+
+    #stock_json["5d_ma"] = stock_json["Adj Close"].rolling(window=5, center=False).mean()
+
+    # Calculate the lower bollinger band (this is the only one that we care about)
+    stock_json["Bol_lower"] = pandas.rolling_mean(stock_json["Adj Close"].iloc[::-1], window=80) \
+            - 2 * pandas.rolling_std(stock_json["Adj Close"].iloc[::-1], 80, min_periods=80)
+
+    # Close the json history file
+    json_file.close()
+
+    return stock_json['Adj Close'][::-1][0], stock_json['Bol_lower'][::-1][0], stock_json['5d_ma'][::-1][0]
 
 
 def filter_candidates():
@@ -105,8 +266,9 @@ def filter_candidates():
         # Get the bollinger band history along with the 5 day moving average
         try:
             close, lower_band, five_day_ma = calculate_bands(stock_ticker)
-        except Exception:
+        except Exception as e:
             print "Could not test ticker: %s" % stock_ticker
+            print "Error: %s" % str(e)
             continue
 
         # If I get bad data, just continue to the next stock
@@ -141,7 +303,18 @@ def find_all_good_candidates():
 
     pool = ThreadPool(NUM_THREADS)
 
+    results = []
+
+    """
+    for ticker in stock_file.readlines():
+        results.append(test_ticker(ticker))
+
+    results = [x for x in results if x is not None]
+    """
+
     results = pool.map(test_ticker, stock_file.readlines())
+
+    results = [x for x in results if x is not None]
 
     return results
 
@@ -155,8 +328,9 @@ def test_ticker(stock_ticker):
     # Get the bollinger band history along with the 5 day moving average
     try:
         close, lower_band, five_day_ma = calculate_bands(stock_ticker)
-    except Exception:
+    except Exception as e:
         print "Could not test ticker: %s" % stock_ticker
+        print "Error: %s" % str(e)
         return None
 
     # If I get bad data, just continue to the next stock
@@ -169,14 +343,17 @@ def test_ticker(stock_ticker):
     last_5_days_close = []
 
     for i in range(0, 5):
-        last_5_days_5_day_ma.append(five_day_ma[i])
-        last_5_days_bb.append(lower_band[i])
-        last_5_days_close.append(close[i])
+        last_5_days_5_day_ma.append(float(five_day_ma[i]))
+        last_5_days_bb.append(float(lower_band[i]))
+        last_5_days_close.append(float(close[i]))
 
     # Condition 1: Has the stock price at close been below the lower bollinger band
     # at market close within the last 5 days
     for i in range(0, 5):
+
         if last_5_days_close[i] < last_5_days_bb[i]:
+
+            print "Hello World!"
 
             # Condition 2: Has the current stock price been above the 5 day moving average sometime in the last 3 days
             for i in range(0, 3):
@@ -194,11 +371,9 @@ def test_ticker(stock_ticker):
 
 def filter_good_candidates(good_candidates):
     """
-    Filter all of the matching candidates by certain parameters.  Right now, specifically 
+    Filter all of the matching candidates by certain parameters.  Right now, specifically
     filter out all low volume stocks.  Low volume limit is 500,000/day.  Could be adjusted
     """
-    
-    LOW_VOLUME_LIMIT = 500,000
 
     filtered_tickers = []
 
@@ -206,34 +381,34 @@ def filter_good_candidates(good_candidates):
         # Filter duplicates.  This happens from time to time
         if ticker in filtered_tickers:
             continue
-        
+
         print "ticker: %s" % ticker
-        
+
         # Try to load the share object.  If you can't after a certain
         # number of retries, just continue and skip the ticker
         retries = 0
         failure = False
         while True:
-            
+
             try:
-                time.sleep(1)
+                time.sleep(0.25)
                 share_object = Share(ticker)
             except Exception:
                 if retries > 5:
                     failure = True
                     break
-                
+
                 retries = retries + 1
                 continue
 
             break
-        
+
         if failure is True:
             continue
-        
+
         # Filter by volume
         average_volume = share_object.get_avg_daily_volume()
-        
+
         # If the average volume can't be found, just continue
         try:
             int(average_volume)
@@ -243,37 +418,27 @@ def filter_good_candidates(good_candidates):
         if int(average_volume) >= LOW_VOLUME_LIMIT:
             filtered_tickers.append(ticker)
 
-        
         # Add any other filtering conditions here!!!
-        
-    
+
     return filtered_tickers
-    
+
 
 
 if __name__ == "__main__":
-    #good_candidates = find_all_good_candidates()
 
-    good_candidates = ['DGLT', 'USAS', 'UUUU', 'VVPR', 'AHPA', 'LVHE', 'OILB',
-        'SNES', 'TPIV', 'INSG', 'CDEV', 'OILK', 'CSTR', 'RCOM', 'LSI', 'EUFS',
-        'BSWN', 'DMPI', 'HRI', 'TWLO', 'HRI', 'STIE', 'TANNI', 'AAB', 'SRTS',
-        'OIIL', 'MLPZ', 'GSM', 'VYGR', 'ASHX', 'PMTS', 'AGI', 'ARWA', 'COLL', 
-        'OPGN', 'CHAU', 'CHEK', 'AFTY', 'CAPR', 'CTRV', 'LBIO', 'VNRX', 'SBEU',
-        'CPSH', 'PSLV', 'NVX', 'NHF', 'SGYPW', 'WHLRW', 'CAPNW', 'KMI', 'CRMD',
-        'CBON', 'PDBC', 'ADMA', 'PRTO', 'SRSC', 'HDLV', 'KRG', 'BRX', 'WPG', 'FRT',
-        'LSI', 'BFS', 'UBA', 'REG', 'AKR', 'ACC', 'RPAI', 'SRC', 'CHMI', 'WSR',
-        'EDR', 'SPG', 'CYBR', 'TKAI', 'CFRX', 'WHLM', 'CNXT', 'JMEI', 'CCLP',
-        'ELP', 'AMAP', 'WES', 'MBT', 'BHP', 'AMID', 'SIM', 'PTR', 'SSN', 'GSH',
-        'AB', 'ERJ', 'FANH', 'WBAI', 'PVD', 'JRJC', 'NGL', 'NS', 'ACH', 'CEQP',
-        'BBDO', 'VCO', 'VRTV', 'ABY', 'TSE', 'LALT', 'QAT', 'T', 'ARX', 'SIVR',
-        'ASNA', 'CDI', 'EFU', 'EFZ', 'FDP', 'TECK', 'BGI', 'BSFT', 'SAND', 'KS',
-        'LUNA', 'ALN', 'OESX', 'MAG', 'OTIV', 'MANH', 'HEES', 'EBSB', 'CUPM', 'NDAQ',
-        'UHN', 'YPRO', 'UUUU', 'ARRY', 'UCO', 'TXMD', 'BABY', 'HUBB', 'GSC', 'AHC',
-        'ASHR', 'RDN', 'HRI', 'EGHT', 'NRG', 'COBO', 'SEA', 'DGII', 'PODD', 'CLDX',
-        'SMRT', 'SNSS', 'UGA', 'EMX', 'JAKK', 'CPER', 'DJCI', 'PBH', 'HPHW', 'HP',
-        'SGOC', 'QTWWQ', 'VRD', 'AMAG', 'TVIA']
+    # Uncomment the rm lines at the beginning of the module
+    #get_historical_data(100)
 
-    filtered_good_candidates = filter_good_candidates(good_candidates)
+    #sys.exit(1)
+
+    #read_ticker_historical("XOM")
+
+    good_candidates = find_all_good_candidates()
+
+    print "Here"
+    import code; code.interact(local=locals())
+
+    #filtered_good_candidates = filter_good_candidates(good_candidates)
 
     # Now, we build the email message to send
     send_email("Investment Aggregator Stock Update", filtered_good_candidates)

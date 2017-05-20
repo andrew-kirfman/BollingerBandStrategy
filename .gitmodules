@@ -4,3 +4,6 @@
 [submodule "yahoo_finance_data_extract"]
 	path = yahoo_finance_data_extract
 	url = git@github.com:spidezad/yahoo_finance_data_extract.git
+[submodule "HTTP_Request_Randomizer"]
+	path = HTTP_Request_Randomizer
+	url = git@github.com:pgaref/HTTP_Request_Randomizer.git

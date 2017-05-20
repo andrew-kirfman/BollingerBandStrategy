@@ -26,7 +26,7 @@ sys.path.append("./yahoo_finance")
 sys.path.append("./RobinhoodPython")
 sys.path.append(".")
 
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import pandas
 from yahoo_finance_historical_data_extract import YFHistDataExtr
 
@@ -85,13 +85,15 @@ def save_stock_chart(ticker_symbol):
 
     plt.savefig('./static/pictures/%s.png' % ticker_symbol)
 
+    plt.close()
+
 
 def send_email(subject, valid_tickers):
     # Read in the admin email information
     admin_file = open(ADMIN_EMAIL, "r")
     admin_account = admin_file.readline().strip()
     admin_password = admin_file.readline().strip()
-    
+
     # Read in the list of people who want these emails
     recipient_file = open(EMAIL_LIST, "r")
     recipients = recipient_file.readlines()
@@ -100,18 +102,18 @@ def send_email(subject, valid_tickers):
     html = "<head>"
     html = html + "<h2>Bollinger Band Candidates</h2>"
     html = html + "<br>"
-    
+
     figure_counter = 1
-    
+
     for ticker in valid_tickers:
         print "Ticker: %s" % ticker
-        
+
         # Try to load the share object.  If you can't after a certain
         # number of retries, just continue and skip the ticker
         retries = 0
         failure = False
         while True:
-            
+
             try:
                 time.sleep(1)
                 share_object = Share(ticker)
@@ -119,21 +121,32 @@ def send_email(subject, valid_tickers):
                 if retries > 5:
                     failure = True
                     break
-                
+
                 retries = retries + 1
                 continue
 
             break
-        
+
         if failure is True:
             continue
-        
+
         # Try to save the image
-        try:
-            save_stock_chart(ticker)
-        except Exception:
-            pass
-        
+        retries = 0
+        failures = False
+        while True:
+
+            try:
+                save_stock_chart(ticker)
+            except Exception:
+                if retries > 5:
+                    failure = True
+                    break
+
+                retries = retries + 1
+                continue
+
+            break
+
         html = html + "<b>Ticker Symbol: %s</b>" % ticker
         html = html + "<ul>"
         html = html + "    <li>Price: %s</li>" % share_object.get_price()
@@ -149,15 +162,15 @@ def send_email(subject, valid_tickers):
         html = html + "    <li>Year Low: %s</li>" % share_object.get_year_low()
         html = html + "</ul>"
         html = html + "<b>Stock Chart</b>"
-        
+
         html = html + '<img src="cid:image%s" style="height: 600px;">' % figure_counter
-        
-        
+
+
         html = html + "<br><br>"
-        
+
         figure_counter = figure_counter + 1
-        
-    
+
+
     html = html + "</head>"
 
     for recipient in recipients:
@@ -167,13 +180,13 @@ def send_email(subject, valid_tickers):
         msgRoot['Subject'] = subject
         msgRoot['From'] = admin_account
         msgRoot['To'] = str(recipient)
-        
+
         msgAlternative = MIMEMultipart('alternative')
         msgRoot.attach(msgAlternative)
-        
-        
+
+
         msgAlternative.attach(MIMEText(html, 'html'))
-        
+
         # Try to attach an image
         figure_counter = 1
         for ticker in valid_tickers:
@@ -182,14 +195,14 @@ def send_email(subject, valid_tickers):
             except Exception:
                 figure_counter = figure_counter + 1
                 continue
-            
+
             msgImage = MIMEImage(fp.read())
-        
+
             msgImage.add_header("Content-ID", "<image%s>" % figure_counter)
             msgRoot.attach(msgImage)
-            
+
             figure_counter = figure_counter + 1
-        
+
             fp.close()
 
         # Send the message via our own SMTP server, but don't include the
