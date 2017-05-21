@@ -7,3 +7,6 @@
 [submodule "HTTP_Request_Randomizer"]
 	path = HTTP_Request_Randomizer
 	url = git@github.com:pgaref/HTTP_Request_Randomizer.git
+[submodule "YahooFinanceHistoricalDataExtractor"]
+	path = YahooFinanceHistoricalDataExtractor
+	url = git@github.com:andrew-kirfman/YahooFinanceHistoricalDataExtractor.git
