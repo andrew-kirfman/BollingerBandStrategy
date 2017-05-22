@@ -294,9 +294,14 @@ if __name__ == "__main__":
 
     bollinger_band_strategy = BollingerBandStrategy(num_threads = 100)
 
-    good_candidates = bollinger_band_strategy.find_all_good_candidates()
+    #good_candidates = bollinger_band_strategy.find_all_good_candidates()
 
-    filtered_good_candidates = bollinger_band_strategy.filter_good_candidates(good_candidates)
+
+    #filtered_good_candidates = bollinger_band_strategy.filter_good_candidates(good_candidates)
+
+    #print str(filtered_good_candidates)
+
+    filtered_good_candidates = ['UNIT', 'CTRV', 'STOR', 'PGRE', 'LXP', 'O', 'CBL', 'VER', 'DDR', 'SKT', 'WPG', 'NNN', 'REG', 'AIV', 'PEI', 'MAC', 'KIM', 'WRI', 'RPAI', 'RLJ', 'SRC', 'SPG', 'SYF', 'SBGL', 'SBS', 'PAA', 'PAGP', 'T', 'DVA', 'ALK', 'CBS', 'URI', 'ENB', 'HP', 'AMAG']
 
     # Now, we build the email message to send
     send_email("Investment Aggregator Stock Update", filtered_good_candidates)

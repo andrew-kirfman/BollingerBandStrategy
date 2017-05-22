@@ -200,6 +200,10 @@ def send_email(subject, valid_tickers):
 
         msgAlternative.attach(MIMEText(html, 'html'))
 
+        print html
+        
+        import code; code.interact(local=locals())
+
         # Try to attach an image
         figure_counter = 1
         for ticker in valid_tickers:
