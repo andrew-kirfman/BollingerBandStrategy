@@ -7,4 +7,6 @@ sudo apt-get install python-dev
 # This module installs any required packages to get started with this application
 pip install --user pandas
 pip install --user pattern
+pip install --user bs4
+pip install --user yahoo_finance
 

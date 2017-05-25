@@ -10,3 +10,6 @@
 [submodule "YahooFinanceHistoricalDataExtractor"]
 	path = YahooFinanceHistoricalDataExtractor
 	url = git@github.com:andrew-kirfman/YahooFinanceHistoricalDataExtractor.git
+[submodule "accessory_libraries/InvestmentAggregator"]
+	path = accessory_libraries/InvestmentAggregator
+	url = git@github.com:andrew-kirfman/InvestmentAggregator.git
