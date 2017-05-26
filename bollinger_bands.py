@@ -130,7 +130,7 @@ class BollingerBandStrategy(object):
     def calculate_bands(self, ticker_symbol):
         stock_json = None
         
-        if os.path.exists("%s/%s.json" % ticker_symbol):
+        if os.path.exists("%s/%s.json" % (self.stock_dir, ticker_symbol)):
             # Read in the ticker data from the json history file.
             json_file = open("%s/%s.json" % (self.stock_dir, ticker_symbol))
 
