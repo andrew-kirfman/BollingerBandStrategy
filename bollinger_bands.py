@@ -80,7 +80,7 @@ class BollingerBandStrategy(object):
         self.filtered_stock_ticker_file = filtered_ticker_file
         self.maximum_threads = num_threads
 
-    def save_stock_chart(ticker_symbol, save_loc = "."):
+    def save_stock_chart(self, ticker_symbol, save_loc = "."):
         # Delete the old bands image for this picture
         os.system("rm %s/%s.png" % (save_loc, ticker_symbol))
 
