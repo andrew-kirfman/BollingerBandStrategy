@@ -80,11 +80,11 @@ class BollingerBandStrategy(object):
         self.filtered_stock_ticker_file = filtered_ticker_file
         self.maximum_threads = num_threads
 
-    def save_stock_chart(ticker_symbol, data_dir = "./historical_stock_data"):
+    def save_stock_chart(ticker_symbol, save_loc = "."):
         # Delete the old bands image for this picture
-        os.system("rm ./static/pictures/%s.png" % ticker_symbol)
+        os.system("rm %s/%s.png" % (save_loc, ticker_symbol))
 
-        data_file = open("%s/%s.json" % (data_dir, ticker_symbol), "r")
+        data_file = open("%s/%s.json" % (self.stock_dir, ticker_symbol), "r")
         stock_json = json.loads(data_file.read())
 
         # Close the json history file
@@ -121,7 +121,7 @@ class BollingerBandStrategy(object):
 
         fig.autofmt_xdate()
 
-        plt.savefig('./static/pictures/%s.png' % ticker_symbol)
+        plt.savefig('%s/%s' % (save_loc, ticker_symbol))
 
         plt.close("All")
 
