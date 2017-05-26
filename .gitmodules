@@ -13,3 +13,12 @@
 [submodule "accessory_libraries/InvestmentAggregator"]
 	path = accessory_libraries/InvestmentAggregator
 	url = git@github.com:andrew-kirfman/InvestmentAggregator.git
+[submodule "AccessoryLibraries/HTTP_Request_Randomizer"]
+	path = AccessoryLibraries/HTTP_Request_Randomizer
+	url = git@github.com:pgaref/HTTP_Request_Randomizer.git
+[submodule "AccessoryLibraries/RobinhoodPython"]
+	path = AccessoryLibraries/RobinhoodPython
+	url = git@github.com:andrew-kirfman/RobinhoodPython.git
+[submodule "AccessoryLibraries/YahooFinanceHistoricalDataExtractor"]
+	path = AccessoryLibraries/YahooFinanceHistoricalDataExtractor
+	url = git@github.com:andrew-kirfman/YahooFinanceHistoricalDataExtractor.git
