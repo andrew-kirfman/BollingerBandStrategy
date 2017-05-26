@@ -126,15 +126,22 @@ class BollingerBandStrategy(object):
         plt.close("All")
 
 
+    
     def calculate_bands(self, ticker_symbol):
-        # Read in the ticker data from the json history file.
-        json_file = open("%s/%s.json" % (self.stock_dir, ticker_symbol))
+        stock_json = None
+        
+        if os.path.exists("%s/%s.json"):
+            # Read in the ticker data from the json history file.
+            json_file = open("%s/%s.json" % (self.stock_dir, ticker_symbol))
 
-        # Convert the read in data into a dictionary
-        stock_json = json.loads(json_file.read())
+            # Convert the read in data into a dictionary
+            stock_json = json.loads(json_file.read())
 
-        # Close the json history file
-        json_file.close()
+            # Close the json history file
+            json_file.close()
+        else:
+            # If there's no ticker data, we can't do anything.  
+            return None, None, None
 
         stock_json["Date"] = pandas.to_datetime(stock_json["Date"])
 
