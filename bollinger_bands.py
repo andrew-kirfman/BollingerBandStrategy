@@ -108,9 +108,9 @@ class BollingerBandStrategy(object):
                 + 2 * pandas.rolling_std(stock_json["Adj Close"].iloc[::-1], 80, min_periods=80)
 
         stock_json['50d_ma'] = pandas.rolling_mean(stock_json['Adj Close'][::-1], window=50)
-        
+
         fig = plt.figure(figsize=(14,7))
-        
+
         ax = fig.add_subplot(111)
 
         ax.plot(stock_json["Date"], list(stock_json["Adj Close"].values.flatten()))
@@ -126,10 +126,10 @@ class BollingerBandStrategy(object):
         plt.close("All")
 
 
-    
+
     def calculate_bands(self, ticker_symbol):
         stock_json = None
-        
+
         if os.path.exists("%s/%s.json" % (self.stock_dir, ticker_symbol)):
             # Read in the ticker data from the json history file.
             json_file = open("%s/%s.json" % (self.stock_dir, ticker_symbol))
@@ -140,7 +140,7 @@ class BollingerBandStrategy(object):
             # Close the json history file
             json_file.close()
         else:
-            # If there's no ticker data, we can't do anything.  
+            # If there's no ticker data, we can't do anything.
             return None, None, None
 
         stock_json["Date"] = pandas.to_datetime(stock_json["Date"])
@@ -258,8 +258,6 @@ class BollingerBandStrategy(object):
         for i in range(0, 5):
 
             if last_5_days_close[i] < last_5_days_bb[i]:
-
-                print "Hello World!"
 
                 # Condition 2: Has the current stock price been above the 5 day moving average sometime in the last 3 days
                 for i in range(0, 3):
