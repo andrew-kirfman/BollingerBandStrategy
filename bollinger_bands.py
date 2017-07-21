@@ -36,7 +36,7 @@ sys.path.append(".")
 
 from yahoo_finance_historical_data_extractor import YFHistoricalDataExtract
 from yahoo_finance_historical_data_extractor import BadTickerFile, CannotCreateDirectory
-from http.requests.proxy.requestProxy import RequestProxy
+from http_request_randomizer.requests.proxy.requestProxy import RequestProxy
 from send_email import send_email
 from robinhood import RobinhoodInstance
 
@@ -239,6 +239,9 @@ class BollingerBandStrategy(object):
             print "Error: %s" % str(e)
             return None
 
+        if close is None or lower_band is None or five_day_ma is None:
+            return None
+
         # If I get bad data, just continue to the next stock
         if len(close) < 5 or len(lower_band) < 5 or len(five_day_ma) < 5:
             print "Could not test ticker: %s" % stock_ticker
@@ -256,6 +259,9 @@ class BollingerBandStrategy(object):
         # Condition 1: Has the stock price at close been below the lower bollinger band
         # at market close within the last 5 days
         for i in range(0, 5):
+
+            if last_5_days_close[i] == 0.00:
+                last_5_days_close[i] = 5000.00
 
             if last_5_days_close[i] < last_5_days_bb[i]:
 
@@ -329,23 +335,23 @@ class BollingerBandStrategy(object):
 
 
 if __name__ == "__main__":
-    #yahoo_fin = YFHistoricalDataExtract(FILTERED_STOCK_FILE, threads=100, clear_existing=False)
+    yahoo_fin = YFHistoricalDataExtract(FILTERED_STOCK_FILE, threads=100, clear_existing=False)
 
-    #yahoo_fin.get_historical_data()
+    yahoo_fin.get_historical_data()
 
-    bollinger_band_strategy = BollingerBandStrategy(num_threads=100)
+    bollinger_band_strategy = BollingerBandStrategy(num_threads=10)
 
-    #good_candidates = bollinger_band_strategy.find_all_good_candidates()
+    good_candidates = bollinger_band_strategy.find_all_good_candidates()
 
 
-    #filtered_good_candidates = bollinger_band_strategy.filter_good_candidates(good_candidates)
+    filtered_good_candidates = bollinger_band_strategy.filter_good_candidates(good_candidates)
 
-    #print str(filtered_good_candidates)
+    print str(filtered_good_candidates)
 
-    filtered_good_candidates = ['UNIT', 'CTRV', 'STOR', 'PGRE', 'LXP', 'O', 'CBL', 'VER', 'DDR', 'SKT', 'WPG', 'NNN', 'REG', 'AIV', 'PEI', 'MAC', 'KIM', 'WRI', 'RPAI', 'RLJ', 'SRC', 'SPG', 'SYF', 'SBGL', 'SBS', 'PAA', 'PAGP', 'T', 'DVA', 'ALK', 'CBS', 'URI', 'ENB', 'HP', 'AMAG']
+    #filtered_good_candidates = ['UNIT', 'CTRV', 'STOR', 'PGRE', 'LXP', 'O', 'CBL', 'VER', 'DDR', 'SKT', 'WPG', 'NNN', 'REG', 'AIV', 'PEI', 'MAC', 'KIM', 'WRI', 'RPAI', 'RLJ', 'SRC', 'SPG', 'SYF', 'SBGL', 'SBS', 'PAA', 'PAGP', 'T', 'DVA', 'ALK', 'CBS', 'URI', 'ENB', 'HP', 'AMAG']
 
     # Now, we build the email message to send
-    send_email("Investment Aggregator Stock Update", filtered_good_candidates)
+    #send_email("Investment Aggregator Stock Update", filtered_good_candidates)
 
 
     import code; code.interact(local=locals())
