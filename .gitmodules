@@ -22,3 +22,6 @@
 [submodule "AccessoryLibraries/YahooFinanceHistoricalDataExtractor"]
 	path = AccessoryLibraries/YahooFinanceHistoricalDataExtractor
 	url = git@github.com:andrew-kirfman/YahooFinanceHistoricalDataExtractor.git
+[submodule "BollingerBandStrategy"]
+	path = BollingerBandStrategy
+	url = git@github.com:andrew-kirfman/BollingerBandStrategy.git
